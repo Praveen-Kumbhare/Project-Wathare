@@ -2,11 +2,14 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Chart from "chart.js/auto";
 import { io } from "socket.io-client";
+import zoomPlugin from "chartjs-plugin-zoom";
 
 const LineChart = () => {
   const chartRef = useRef();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const chartInstance = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,27 +44,30 @@ const LineChart = () => {
 
     const ctx = chartRef.current.getContext("2d");
 
+    const currentYear = new Date().getFullYear();
+
     const myChart = new Chart(ctx, {
-      type: "bar",
+      type: "line",
       data: {
         labels: data.map((entry) => {
           const timestamp = new Date(entry?.timestamp);
           const options = {
             weekday: "short",
+            month: "short",
+            day: "numeric",
             hour: "numeric",
             minute: "numeric",
-            month: "short",
           };
           return timestamp.toLocaleString([], options);
         }),
         datasets: [
           {
-            label: `Sales ${new Date().getFullYear()}`,
+            label: currentYear.toString(),
             data: data.map((entry) => entry?.value),
             borderColor: "rgba(75, 192, 192, 1)",
             borderWidth: 2,
             fill: false,
-            tension: 0.1,
+            tension: 0.2,
           },
         ],
       },
@@ -71,19 +77,49 @@ const LineChart = () => {
             beginAtZero: true,
           },
         },
+        plugins: {
+          zoom: {
+            zoom: {
+              wheel: {
+                enabled: true,
+              },
+              pinch: {
+                enabled: true,
+              },
+              mode: "xy",
+            },
+            pan: {
+              enabled: true,
+              mode: "xy",
+            },
+          },
+        },
       },
+      plugins: [zoomPlugin],
     });
+    chartInstance.current = myChart;
 
     return () => {
       myChart.destroy();
     };
   }, [data, loading]);
 
+  const handleResetZoom = () => {
+    if (chartInstance.current) {
+      chartInstance.current.resetZoom();
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return <canvas ref={chartRef} style={{ width: "100%", height: "100px" }} />;
+  return (
+    <div>
+      <canvas ref={chartRef} style={{ width: "100%", height: "100px" }} />
+      <button onClick={handleResetZoom}>Reset Zoom</button>
+    </div>
+  );
 };
 
 export default LineChart;
